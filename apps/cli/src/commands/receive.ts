@@ -48,13 +48,19 @@ export async function receive(joinCode: string, options: { output?: string; stor
           .then(() => {
             if (!interrupted) {
               console.log('All files downloaded. Disconnecting...')
-              clientRef!.disconnect()
+              clientRef!.disconnect().catch((err) => {
+                if (!interrupted) {
+                  console.error('Disconnect failed:', err instanceof Error ? err.message : String(err))
+                }
+                if (!interrupted) done()
+              })
             }
           })
           .catch((err) => {
             if (!interrupted) {
               console.error('Download failed:', err instanceof Error ? err.message : String(err))
             }
+            if (!interrupted) done()
           })
       }
       return
@@ -110,8 +116,11 @@ export async function receive(joinCode: string, options: { output?: string; stor
   process.on('SIGINT', async () => {
     if (interrupted) return
     interrupted = true
-    await runtime.client.disconnect()
-    exitDeferred()
+    try {
+      await runtime.client.disconnect()
+    } finally {
+      exitDeferred()
+    }
   })
 
   try {
